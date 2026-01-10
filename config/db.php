@@ -1,8 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 date_default_timezone_set("Europe/Istanbul");
 
 $host = "ballast.proxy.rlwy.net";
@@ -21,9 +17,6 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]
     );
-
-    $pdo->exec("SET time_zone = '+03:00'");
-
 } catch (PDOException $e) {
     die("DB ERROR: " . $e->getMessage());
 }
