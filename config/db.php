@@ -2,33 +2,37 @@
 // 🇹🇷 PHP saatini Türkiye yap
 date_default_timezone_set("Europe/Istanbul");
 
-$host = "localhost";
-$db = "gk_veritabani";
+/*
+|--------------------------------------------------------------------------
+| Railway MySQL Bağlantı Bilgileri
+|--------------------------------------------------------------------------
+*/
+$host = "ballast.proxy.rlwy.net";
+$port = 20344;
+$db = "railway";
 $user = "root";
-$pass = "";
+$pass = "TVyuCkNwmZBcGHLWXOUnDhRzdnBeOddI";
 
 try {
     $pdo = new PDO(
-        "mysql:host=$host;dbname=$db;charset=utf8mb4",
+        "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4",
         $user,
         $pass,
         [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '+03:00'"
         ]
     );
-
-    // 🇹🇷 MySQL saatini de TR yap (ÇOK KRİTİK)
-    $pdo->exec("SET time_zone = '+03:00'");
-
 } catch (PDOException $e) {
-    die("Veritabanı bağlantı hatası");
+    die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
 
 /* =====================================================
    🔥 SÜRESİ BİTEN MEZATLARI KAPAT + KAZANANI BELİRLE
-   (HER SAYFA YÜKLENİŞİNDE GÜVENLE ÇALIŞIR)
+   (Railway + MySQL 8 uyumlu)
 ===================================================== */
+
 $endedAuctions = $pdo->query("
     SELECT id
     FROM auctions
@@ -39,15 +43,15 @@ $endedAuctions = $pdo->query("
 foreach ($endedAuctions as $a) {
 
     // 🔹 EN YÜKSEK TEKLİF
-    $bid = $pdo->prepare("
+    $stmt = $pdo->prepare("
         SELECT user_id, amount
         FROM bids
         WHERE auction_id = ?
         ORDER BY amount DESC, created_at ASC
         LIMIT 1
     ");
-    $bid->execute([$a["id"]]);
-    $winner = $bid->fetch();
+    $stmt->execute([$a["id"]]);
+    $winner = $stmt->fetch();
 
     if ($winner) {
         // 🏆 KAZANANI YAZ
