@@ -22,14 +22,30 @@ if (!$u || $u["role"] !== "admin") {
 }
 
 /* --------------------
+   TOKEN OLUŞTUR
+-------------------- */
+if (empty($_SESSION["create_auction_token"])) {
+    $_SESSION["create_auction_token"] = bin2hex(random_bytes(32));
+}
+
+/* --------------------
    YENİ MEZAT EKLE
 -------------------- */
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+    if (
+        !isset($_POST["token"]) ||
+        !hash_equals($_SESSION["create_auction_token"], $_POST["token"])
+    ) {
+        die("Geçersiz veya tekrar eden işlem.");
+    }
+
+    // TOKEN TEK KULLANIMLIK
+    unset($_SESSION["create_auction_token"]);
+
     $title = trim($_POST["title"]);
     $desc = trim($_POST["description"]);
     $price = (int) $_POST["start_price"];
-
     $end = date("Y-m-d H:i:s", strtotime($_POST["end_time"]));
 
     if ($price % 100 !== 0) {
@@ -80,6 +96,7 @@ $auctions = $pdo->query("
     ORDER BY a.start_time DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -114,7 +131,7 @@ $auctions = $pdo->query("
             padding: 14px;
             border-radius: 10px;
             margin-bottom: 20px;
-            font-weight: bold;
+            font-weight: bold
         }
 
         label {
@@ -139,7 +156,8 @@ $auctions = $pdo->query("
             border-radius: 10px;
             background: #6c63ff;
             color: #fff;
-            font-weight: bold
+            font-weight: bold;
+            cursor: pointer
         }
 
         table {
@@ -180,14 +198,16 @@ $auctions = $pdo->query("
 <body>
     <div class="container">
 
-        <!-- ✅ BAŞARI MESAJI -->
         <?php if (isset($_GET["ok"])): ?>
             <div class="success">✅ Mezat başarıyla başlatıldı.</div>
         <?php endif; ?>
 
         <div class="card">
             <h2>➕ Yeni Mezat Oluştur</h2>
+
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="token" value="<?= $_SESSION["create_auction_token"] ?>">
+
                 <label>Ürün Adı</label>
                 <input name="title" required>
 
@@ -203,7 +223,9 @@ $auctions = $pdo->query("
                 <label>Fotoğraf</label>
                 <input type="file" name="image" required>
 
-                <button>Mezatı Başlat</button>
+                <button onclick="this.disabled=true; this.form.submit();">
+                    Mezatı Başlat
+                </button>
             </form>
         </div>
 
