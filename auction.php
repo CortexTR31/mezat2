@@ -81,14 +81,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 /* TEKLİF GEÇMİŞİ */
 $bids = $pdo->prepare("
-    SELECT b.amount, u.name, b.created_at
+    SELECT 
+        b.amount,
+        b.created_at,
+        u.name,
+        (
+            b.amount - IFNULL(
+                (
+                    SELECT b2.amount
+                    FROM bids b2
+                    WHERE b2.auction_id = b.auction_id
+                      AND b2.created_at < b.created_at
+                    ORDER BY b2.created_at DESC
+                    LIMIT 1
+                ),
+                a.start_price
+            )
+        ) AS increase_amount
     FROM bids b
     JOIN users u ON u.id = b.user_id
+    JOIN auctions a ON a.id = b.auction_id
     WHERE b.auction_id = ?
-    ORDER BY b.amount DESC, b.created_at ASC
+    ORDER BY b.created_at DESC
 ");
 $bids->execute([$auctionId]);
 $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -258,10 +276,20 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
             <?php foreach ($bidList as $b): ?>
                 <div class="bid">
                     <strong><?= htmlspecialchars($b["name"]) ?></strong><br>
-                    <?= number_format($b["amount"]) ?> TL
-                    <div class="small"><?= date("d.m H:i:s", strtotime($b["created_at"])) ?></div>
+
+                    💰 Teklif: <b><?= number_format($b["amount"]) ?> TL</b><br>
+
+                    📈 Artış:
+                    <span style="color:#27ae60;font-weight:bold">
+                        +<?= number_format($b["increase_amount"]) ?> TL
+                    </span>
+
+                    <div class="small">
+                        ⏱ <?= date("d.m.Y H:i:s", strtotime($b["created_at"])) ?>
+                    </div>
                 </div>
             <?php endforeach; ?>
+
         </div>
 
     </div>
