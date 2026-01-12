@@ -10,7 +10,6 @@ if (!isset($_SESSION["user"])) {
 
 $userId = $_SESSION["user"];
 $error = "";
-$success = "";
 
 /* MEZAT ID */
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
@@ -20,16 +19,19 @@ $auctionId = (int) $_GET["id"];
 
 /* MEZATI ÇEK */
 $q = $pdo->prepare("
-    SELECT * FROM auctions 
-    WHERE id = ? 
-    AND status = 'active'
-    AND end_time > NOW()
+    SELECT * FROM auctions
+    WHERE id = ?
 ");
 $q->execute([$auctionId]);
 $auction = $q->fetch(PDO::FETCH_ASSOC);
 
 if (!$auction) {
-    die("Mezat bulunamadı veya süresi bitmiş.");
+    die("Mezat bulunamadı.");
+}
+
+/* SÜRE KONTROL */
+if ($auction["status"] !== "active" || strtotime($auction["end_time"]) <= time()) {
+    die("Bu mezat sona ermiştir.");
 }
 
 /* TEKLİF VERME */
@@ -39,30 +41,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($amount % 100 !== 0) {
         $error = "Teklif 100 TL ve katları olmalıdır.";
-    } elseif ($amount <= $auction["current_price"]) {
-        $error = "Teklif mevcut fiyattan yüksek olmalıdır.";
+    } elseif ($amount < $auction["current_price"] + 100) {
+        $error = "Minimum artış 100 TL olmalıdır.";
     } else {
-        $pdo->prepare("
-            INSERT INTO bids (auction_id, user_id, amount)
-            VALUES (?, ?, ?)
-        ")->execute([$auctionId, $userId, $amount]);
 
-        $pdo->prepare("
-            UPDATE auctions SET current_price = ? WHERE id = ?
-        ")->execute([$amount, $auctionId]);
+        /* SON TEKLİF SAHİBİ */
+        $lastBid = $pdo->prepare("
+            SELECT user_id
+            FROM bids
+            WHERE auction_id = ?
+            ORDER BY amount DESC, created_at DESC
+            LIMIT 1
+        ");
+        $lastBid->execute([$auctionId]);
+        $last = $lastBid->fetch(PDO::FETCH_ASSOC);
 
-        header("Location: index.php");
-        exit;
+        if ($last && $last["user_id"] == $userId) {
+            $error = "Aynı kullanıcı arka arkaya teklif veremez.";
+        } else {
+
+            /* TEKLİF EKLE */
+            $pdo->prepare("
+                INSERT INTO bids (auction_id, user_id, amount, created_at)
+                VALUES (?, ?, ?, NOW())
+            ")->execute([$auctionId, $userId, $amount]);
+
+            /* FİYATI GÜNCELLE */
+            $pdo->prepare("
+                UPDATE auctions
+                SET current_price = ?
+                WHERE id = ?
+            ")->execute([$amount, $auctionId]);
+
+            header("Location: auction.php?id=" . $auctionId);
+            exit;
+        }
     }
 }
 
-/* TEKLİFLER */
+/* TEKLİF GEÇMİŞİ */
 $bids = $pdo->prepare("
     SELECT b.amount, u.name, b.created_at
     FROM bids b
     JOIN users u ON u.id = b.user_id
     WHERE b.auction_id = ?
-    ORDER BY b.amount DESC
+    ORDER BY b.amount DESC, b.created_at ASC
 ");
 $bids->execute([$auctionId]);
 $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
@@ -164,17 +187,9 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
             cursor: pointer;
         }
 
-        button:hover {
-            opacity: .9;
-        }
-
         .bid {
             padding: 10px;
             border-bottom: 1px solid #eee;
-        }
-
-        .bid strong {
-            color: #333;
         }
 
         @media(max-width:900px) {
@@ -192,7 +207,6 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
             <strong>Tespih Mezat</strong>
             <nav>
                 <a href="index.php">Anasayfa</a>
-                <a href="settings.php">Ayarlar</a>
                 <a href="/auth/logout.php">Çıkış</a>
             </nav>
         </div>
@@ -212,14 +226,12 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
 
             <h2><?= htmlspecialchars($auction["title"]) ?></h2>
             <p class="small"><?= nl2br(htmlspecialchars($auction["description"])) ?></p>
-
             <p class="small">Bitiş: <?= date("d.m.Y H:i", strtotime($auction["end_time"])) ?></p>
         </div>
 
         <!-- SAĞ -->
         <div class="card">
             <p>Başlangıç: <?= number_format($auction["start_price"]) ?> TL</p>
-            <p>En Yüksek Teklif</p>
             <div class="price"><?= number_format($auction["current_price"]) ?> TL</div>
 
             <hr>
@@ -231,8 +243,7 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
 
             <form method="POST">
-                <input type="number" name="amount" min="<?= $auction["current_price"] + 100 ?>" step="100"
-                    placeholder="Teklif tutarı" required>
+                <input type="number" name="amount" min="<?= $auction["current_price"] + 100 ?>" step="100" required>
                 <button>Teklif Ver</button>
             </form>
 
@@ -248,7 +259,7 @@ $bidList = $bids->fetchAll(PDO::FETCH_ASSOC);
                 <div class="bid">
                     <strong><?= htmlspecialchars($b["name"]) ?></strong><br>
                     <?= number_format($b["amount"]) ?> TL
-                    <div class="small"><?= date("d.m H:i", strtotime($b["created_at"])) ?></div>
+                    <div class="small"><?= date("d.m H:i:s", strtotime($b["created_at"])) ?></div>
                 </div>
             <?php endforeach; ?>
         </div>
