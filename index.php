@@ -172,6 +172,7 @@ $auctions = $pdo->query("
             <strong>GÖRKEM KAYMAZ TESPİH MEZAT</strong>
             <nav>
                 <a href="index.php">Anasayfa</a>
+                <a href="admin/finished.php">Bitmiş Mezatlar</a>
 
                 <?php if ($isLogin): ?>
                     <?php if ($isAdmin): ?><a href="admin/index.php">Admin</a><?php endif; ?>
