@@ -107,6 +107,16 @@ $auctions = $pdo->query("
             margin-bottom: 40px
         }
 
+        .success {
+            background: #eafaf1;
+            border: 1px solid #2ecc71;
+            color: #2e7d32;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
         label {
             display: block;
             margin: 10px 0 5px;
@@ -170,7 +180,11 @@ $auctions = $pdo->query("
 <body>
     <div class="container">
 
-        <!-- ✅ MEZAT EKLEME GERİ GELDİ -->
+        <!-- ✅ BAŞARI MESAJI -->
+        <?php if (isset($_GET["ok"])): ?>
+            <div class="success">✅ Mezat başarıyla başlatıldı.</div>
+        <?php endif; ?>
+
         <div class="card">
             <h2>➕ Yeni Mezat Oluştur</h2>
             <form method="POST" enctype="multipart/form-data">
