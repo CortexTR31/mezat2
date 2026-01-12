@@ -57,7 +57,6 @@ $auctions = $pdo->query("
             margin: 0;
         }
 
-        /* HEADER */
         header {
             background: linear-gradient(135deg, #111, #2c2c2c);
             color: #fff;
@@ -79,10 +78,6 @@ $auctions = $pdo->query("
             font-weight: 500;
         }
 
-        nav a:hover {
-            text-decoration: underline;
-        }
-
         .avatar {
             width: 38px;
             height: 38px;
@@ -96,7 +91,6 @@ $auctions = $pdo->query("
             margin-left: 12px;
         }
 
-        /* GRID */
         .auctions {
             max-width: 1200px;
             margin: 40px auto;
@@ -106,21 +100,18 @@ $auctions = $pdo->query("
             gap: 25px;
         }
 
-        /* CARD */
         .card {
             background: #fff;
             padding: 16px;
             border-radius: 14px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
-            transition: transform .2s, box-shadow .2s;
+            transition: .2s;
         }
 
         .card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 18px 35px rgba(0, 0, 0, .12);
         }
 
-        /* IMAGE */
         .image-box {
             width: 100%;
             height: 240px;
@@ -140,12 +131,6 @@ $auctions = $pdo->query("
             object-fit: contain;
         }
 
-        /* TEXT */
-        .card h3 {
-            margin: 8px 0;
-            font-size: 18px;
-        }
-
         .desc {
             font-size: 14px;
             color: #555;
@@ -162,7 +147,10 @@ $auctions = $pdo->query("
             margin: 4px 0;
         }
 
-        /* BUTTON */
+        .countdown {
+            font-weight: bold;
+        }
+
         .btn {
             display: block;
             margin-top: 14px;
@@ -173,10 +161,6 @@ $auctions = $pdo->query("
             text-align: center;
             text-decoration: none;
             font-weight: bold;
-        }
-
-        .btn:hover {
-            opacity: .9;
         }
     </style>
 </head>
@@ -190,9 +174,7 @@ $auctions = $pdo->query("
                 <a href="index.php">Anasayfa</a>
 
                 <?php if ($isLogin): ?>
-                    <?php if ($isAdmin): ?>
-                        <a href="admin/index.php">Admin</a>
-                    <?php endif; ?>
+                    <?php if ($isAdmin): ?><a href="admin/index.php">Admin</a><?php endif; ?>
                     <span class="avatar"><?= $initials ?></span>
                     <a href="/auth/logout.php">Çıkış</a>
                 <?php else: ?>
@@ -216,18 +198,52 @@ $auctions = $pdo->query("
                 </div>
 
                 <h3><?= htmlspecialchars($a["title"]) ?></h3>
-
                 <div class="desc"><?= nl2br(htmlspecialchars($a["description"])) ?></div>
 
                 <div class="meta">Başlangıç: <?= number_format($a["start_price"]) ?> TL</div>
                 <div class="meta">En Yüksek: <span class="price"><?= number_format($a["current_price"]) ?> TL</span></div>
                 <div class="meta">Son Teklif: <strong><?= $a["last_bidder"] ?? "Yok" ?></strong></div>
-                <div class="meta">⏳ <?= date("d.m.Y H:i", strtotime($a["end_time"])) ?></div>
+
+                <!-- 🔥 CANLI GERİ SAYIM -->
+                <div class="meta countdown" data-end="<?= strtotime($a["end_time"]) ?>">
+                    ⏳ Hesaplanıyor...
+                </div>
 
                 <a href="auction.php?id=<?= $a["id"] ?>" class="btn">Teklif Ver</a>
+
             </div>
         <?php endforeach; ?>
     </section>
+
+    <script>
+        document.querySelectorAll(".countdown").forEach(el => {
+            const end = el.dataset.end * 1000;
+
+            function update() {
+                const diff = end - Date.now();
+                if (diff <= 0) {
+                    el.textContent = "⛔ Mezat Bitti";
+                    el.style.color = "red";
+                    return;
+                }
+
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor(diff / 60000) % 60;
+                const s = Math.floor(diff / 1000) % 60;
+
+                if (diff < 300000) el.style.color = "#e74c3c";
+
+                el.textContent =
+                    "⏳ " +
+                    String(h).padStart(2, "0") + ":" +
+                    String(m).padStart(2, "0") + ":" +
+                    String(s).padStart(2, "0") + " kaldı";
+            }
+
+            update();
+            setInterval(update, 1000);
+        });
+    </script>
 
 </body>
 
